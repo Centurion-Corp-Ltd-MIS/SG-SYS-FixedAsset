@@ -1,0 +1,14 @@
+﻿body {
+
+}
+
+.loginBackground {
+    background-image: url("../img/centurion.jpg");
+    background-size: cover;
+}
+
+.bg-login-img {
+  background: url("../img/ccllogo.png");
+  background-position: center;
+  background-size: cover;
+}

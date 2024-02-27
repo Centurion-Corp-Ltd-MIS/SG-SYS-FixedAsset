@@ -1,0 +1,398 @@
+string selectedDepartment = "";
+            Boolean previousRecordExist = false;
+            string previousRiskStatement = "";
+            string previousRiskDescription = "";
+
+
+            if (ddlRiskRef.SelectedIndex == 0 || ddlEntity.SelectedIndex == 0)
+            {
+                lblErrorMsg.Visible = true;
+                lblErrorAll2.Visible = false;
+            }
+            else if (ddlEntity.Text.Trim() == "Centurion Corporation Limited" &&  ddlDepartment.SelectedIndex == 0)
+            {
+                lblErrorAll2.Visible = true;
+                lblErrorMsg.Visible = false;
+            }
+            else
+            {
+                lblErrorMsg.Visible = false;
+                lblErrorAll2.Visible = false;
+                string currentDateTime = DateTime.Now.ToString();
+                string HODname = "";
+                string HOD = "";
+                string ControlActivities = "";
+                ////////////////////Do Coding to check for duplicate later , first time or secondtime, so we can decide whether to pull the latest or create new//////////////////////////////////
+                conn.Conn();
+                conn.Open();
+
+                //Get HOD name
+                if (ddlEntity.SelectedValue.Trim() == "Centurion Corporation Limited")
+                {
+                    sqlcom = new SqlCommand();
+                    sqlcom.CommandText = "select ViewOrHOD from dbo.Setup_Department where DepartmentName = '" + ddlDepartment.SelectedValue.Trim() + "' and STATUS = @Status2;";
+                    sqlcom.Connection = conn.objConnection;
+                    sqlcom.Parameters.AddWithValue("@Status2", "ACTIVE");
+                    dr = sqlcom.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        HOD = dr.GetString(0);
+                    }
+                    dr.Close();
+                    sqlcom.Dispose();
+                }
+                else
+                {
+                    sqlcom = new SqlCommand();
+                    sqlcom.CommandText = "select HOD from dbo.Setup_Entity where EntityName = '" + ddlEntity.SelectedValue.Trim() + "' and STATUS = @Status2;";
+                    sqlcom.Connection = conn.objConnection;
+                    sqlcom.Parameters.AddWithValue("@Status2", "ACTIVE");
+                    dr = sqlcom.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        HOD = dr.GetString(0);
+                    }
+                    dr.Close();
+                    sqlcom.Dispose();
+                }
+
+
+                //Get the previous Quarter and Year if needed
+                string checkYear = "";
+                string checkQuarter = "";
+
+                if (txtQuarter.Text == "Q1")
+                {
+                    checkYear = Convert.ToString(Convert.ToInt32(txtYear.Text) - 1);
+                    checkQuarter = "Q4";
+                }
+                else if (txtQuarter.Text == "Q2")
+                {
+                    checkYear = txtYear.Text;
+                    checkQuarter = "Q1";
+                }
+                else if (txtQuarter.Text == "Q3")
+                {
+                    checkYear = txtYear.Text;
+                    checkQuarter = "Q2";
+                }
+                else if (txtQuarter.Text == "Q4")
+                {
+                    checkYear = txtYear.Text;
+                    checkQuarter = "Q3";
+                }
+
+                
+                //Get The entity and department Name
+                if (ddlDepartment.SelectedIndex == 0)
+                {
+                    selectedDepartment = "";
+                }
+                else
+                {
+                    selectedDepartment = ddlDepartment.SelectedValue.Trim();
+                }
+
+                //Check if there is previous record for risk 
+
+                sqlcom.CommandText = "select AfterRiskStatement, AfterRiskDescription from RiskAssessmentForm where HOD = @HODd and Year = @Yearr and Quarter = @Quarterr and RiskReferenceCode = @RiskReff and EntityName = @Entityy and DepartmentName = @Departmentt and OverallStatus = @OverallStatuss";
+                sqlcom.Connection = conn.objConnection;
+                sqlcom.Parameters.AddWithValue("@HODd", HOD);
+                sqlcom.Parameters.AddWithValue("@Yearr", checkYear);
+                sqlcom.Parameters.AddWithValue("@Quarterr", checkQuarter);
+                sqlcom.Parameters.AddWithValue("@RiskReff", ddlRiskRef.SelectedValue.Trim());
+                sqlcom.Parameters.AddWithValue("@Entityy", ddlEntity.SelectedValue.Trim());
+                sqlcom.Parameters.AddWithValue("@Departmentt", selectedDepartment);
+                sqlcom.Parameters.AddWithValue("@OverallStatuss", "Approved");
+                dr = sqlcom.ExecuteReader();
+                if (dr.HasRows)
+                {
+                    while (dr.Read())
+                    {
+                        previousRecordExist = true;
+                        previousRiskStatement = dr.GetString(0);
+                        previousRiskDescription = dr.GetString(1);
+                    }
+                }
+                dr.Close();
+                sqlcom.Dispose();
+
+
+                // if else when there is previous record and no previous record
+
+                if (previousRecordExist)
+                {
+                    // Insert Record if got previous record
+                    sqlcom.CommandText = "INSERT INTO dbo.RiskAssessmentForm  " +
+                        "(SubmissionDeadline, Year, Quarter, EntityName, DepartmentName, CreationDate, RiskReferenceCode, RiskCategory, RiskType, ControlReferenceCodeAll, " +
+                        "ActionPlanDescription, ActionPlanDeadline, OverallStatus, BeforeRiskStatement, AfterRiskStatement, BeforeRiskDescription, AfterRiskDescription, RRR, RRRLike, RiskDriver, HOD) VALUES " +
+                        "(@SubmissionDeadline, @Year, @Quarter, @EntityName, @DepartmentName, @CreationDate, @RiskReferenceCode, @RiskCategory, @RiskType, @ControlReferenceCodeAll, " +
+                        "@ActionPlanDescription, @ActionPlanDeadline, @OverallStatus, @BeforeRiskStatement, @AfterRiskStatement, @BeforeRiskDescription, @AfterRiskDescription, @RRR, @RRRLike, @RiskDriver, @HOD) ";
+
+                    sqlcom.Parameters.AddWithValue("@SubmissionDeadline", SqlDbType.VarChar).Value = txtboxDate.Text;
+                    sqlcom.Parameters.AddWithValue("@Year", SqlDbType.VarChar).Value = txtYear.Text;
+                    sqlcom.Parameters.AddWithValue("@Quarter", SqlDbType.VarChar).Value = txtQuarter.Text;
+                    sqlcom.Parameters.AddWithValue("@EntityName", ddlEntity.SelectedValue.Trim());
+                    sqlcom.Parameters.AddWithValue("@DepartmentName", ddlDepartment.SelectedValue.Trim());
+                    sqlcom.Parameters.AddWithValue("@CreationDate", SqlDbType.Int).Value = currentDateTime;
+                    sqlcom.Parameters.AddWithValue("@RiskReferenceCode", ddlRiskRef.SelectedValue.Trim());
+                    sqlcom.Parameters.AddWithValue("@RiskCategory", SqlDbType.VarChar).Value = txtCategory.Text;
+                    sqlcom.Parameters.AddWithValue("@RiskType", SqlDbType.VarChar).Value = txtType.Text;
+                    sqlcom.Parameters.AddWithValue("@ControlReferenceCodeAll", SqlDbType.VarChar).Value = txtControlList.Text;
+                    sqlcom.Parameters.AddWithValue("@ActionPlanDescription", SqlDbType.VarChar).Value = "NIL";
+                    sqlcom.Parameters.AddWithValue("@ActionPlanDeadline", SqlDbType.VarChar).Value = "NIL";
+                    sqlcom.Parameters.AddWithValue("@OverallStatus", SqlDbType.VarChar).Value = "Draft";
+                    sqlcom.Parameters.AddWithValue("@BeforeRiskStatement", SqlDbType.VarChar).Value = previousRiskStatement;
+                    sqlcom.Parameters.AddWithValue("@AfterRiskStatement", SqlDbType.VarChar).Value = previousRiskStatement;
+                    sqlcom.Parameters.AddWithValue("@BeforeRiskDescription", SqlDbType.VarChar).Value = previousRiskDescription;
+                    sqlcom.Parameters.AddWithValue("@AfterRiskDescription", SqlDbType.VarChar).Value = previousRiskDescription;
+                    sqlcom.Parameters.AddWithValue("@RRR", 0);
+                    sqlcom.Parameters.AddWithValue("@RRRLike", 0);
+                    sqlcom.Parameters.AddWithValue("@RiskDriver", txtDriver.Text);
+                    sqlcom.Parameters.AddWithValue("@HOD", HOD);
+
+                    sqlcom.Connection = conn.objConnection;
+                    sqlcom.ExecuteNonQuery();
+                    sqlcom.Dispose();
+                }
+                else
+                {
+                    // Insert Record if no previous record
+                    sqlcom.CommandText = "INSERT INTO dbo.RiskAssessmentForm  " +
+                        "(SubmissionDeadline, Year, Quarter, EntityName, DepartmentName, CreationDate, RiskReferenceCode, RiskCategory, RiskType, ControlReferenceCodeAll, " +
+                        "ActionPlanDescription, ActionPlanDeadline, OverallStatus, BeforeRiskStatement, AfterRiskStatement, BeforeRiskDescription, AfterRiskDescription, RRR, RRRLike, RiskDriver, HOD) VALUES " +
+                        "(@SubmissionDeadline, @Year, @Quarter, @EntityName, @DepartmentName, @CreationDate, @RiskReferenceCode, @RiskCategory, @RiskType, @ControlReferenceCodeAll, " +
+                        "@ActionPlanDescription, @ActionPlanDeadline, @OverallStatus, @BeforeRiskStatement, @AfterRiskStatement, @BeforeRiskDescription, @AfterRiskDescription, @RRR, @RRRLike, @RiskDriver, @HOD) ";
+
+                    sqlcom.Parameters.AddWithValue("@SubmissionDeadline", SqlDbType.VarChar).Value = txtboxDate.Text;
+                    sqlcom.Parameters.AddWithValue("@Year", SqlDbType.VarChar).Value = txtYear.Text;
+                    sqlcom.Parameters.AddWithValue("@Quarter", SqlDbType.VarChar).Value = txtQuarter.Text;
+                    sqlcom.Parameters.AddWithValue("@EntityName", ddlEntity.SelectedValue.Trim());
+                    sqlcom.Parameters.AddWithValue("@DepartmentName", ddlDepartment.SelectedValue.Trim());
+                    sqlcom.Parameters.AddWithValue("@CreationDate", SqlDbType.Int).Value = currentDateTime;
+                    sqlcom.Parameters.AddWithValue("@RiskReferenceCode", ddlRiskRef.SelectedValue.Trim());
+                    sqlcom.Parameters.AddWithValue("@RiskCategory", SqlDbType.VarChar).Value = txtCategory.Text;
+                    sqlcom.Parameters.AddWithValue("@RiskType", SqlDbType.VarChar).Value = txtType.Text;
+                    sqlcom.Parameters.AddWithValue("@ControlReferenceCodeAll", SqlDbType.VarChar).Value = txtControlList.Text;
+                    sqlcom.Parameters.AddWithValue("@ActionPlanDescription", SqlDbType.VarChar).Value = "NIL";
+                    sqlcom.Parameters.AddWithValue("@ActionPlanDeadline", SqlDbType.VarChar).Value = "NIL";
+                    sqlcom.Parameters.AddWithValue("@OverallStatus", SqlDbType.VarChar).Value = "Draft";
+                    sqlcom.Parameters.AddWithValue("@BeforeRiskStatement", SqlDbType.VarChar).Value = txtStatement.Text;
+                    sqlcom.Parameters.AddWithValue("@AfterRiskStatement", SqlDbType.VarChar).Value = txtStatement.Text;
+                    sqlcom.Parameters.AddWithValue("@BeforeRiskDescription", SqlDbType.VarChar).Value = txtDescription.Text;
+                    sqlcom.Parameters.AddWithValue("@AfterRiskDescription", SqlDbType.VarChar).Value = txtDescription.Text;
+                    sqlcom.Parameters.AddWithValue("@RRR", 0);
+                    sqlcom.Parameters.AddWithValue("@RRRLike", 0);
+                    sqlcom.Parameters.AddWithValue("@RiskDriver", txtDriver.Text);
+                    sqlcom.Parameters.AddWithValue("@HOD", HOD);
+
+                    sqlcom.Connection = conn.objConnection;
+                    sqlcom.ExecuteNonQuery();
+                    sqlcom.Dispose();
+                }
+
+
+
+
+              
+                // For Control Data Looping
+                String[] seperator = { ", " };
+                String[] list = txtControlList.Text.Split(seperator, StringSplitOptions.RemoveEmptyEntries);
+                foreach (String controlNumber in list)
+                {
+
+                    Boolean previousControlExist = false;
+                    string previousControlActivities = "";
+                    Decimal previousControlImpactRating = 0;
+                    Decimal previousControlLikelihoodRating = 0;
+
+                    //Check if there is previous record for each control data 
+
+                    sqlcom.CommandText = "Select AfterControlActivities, AfterControlImpactRating, AfterControlLikelihoodRating from dbo.Control_Data where Year = @Yearrr and Quarter = @Quarterrr and Entity = @Entityyy and Department = @Departmenttt and HODEmail = @HODdd and RiskReferenceCode = @RiskRefff and ControlReferenceCode = @ControlRefff ";
+                    sqlcom.Connection = conn.objConnection;
+                    sqlcom.Parameters.AddWithValue("@HODdd", HOD);
+                    sqlcom.Parameters.AddWithValue("@Yearrr", checkYear);
+                    sqlcom.Parameters.AddWithValue("@Quarterrr", checkQuarter);
+                    sqlcom.Parameters.AddWithValue("@RiskRefff", ddlRiskRef.SelectedValue.Trim());
+                    sqlcom.Parameters.AddWithValue("@ControlRefff", controlNumber);
+                    
+                    sqlcom.Parameters.AddWithValue("@Entityyy", ddlEntity.SelectedValue.Trim());
+                    sqlcom.Parameters.AddWithValue("@Departmenttt", selectedDepartment);
+                    sqlcom.Parameters.AddWithValue("@OverallStatusss", "Approved");
+                    dr = sqlcom.ExecuteReader();
+                    if (dr.HasRows)
+                    {
+                        while (dr.Read())
+                        {
+                            previousControlExist = true;
+                            previousControlActivities = dr.GetString(0);
+                            previousControlImpactRating = dr.GetDecimal(1);
+                            previousControlLikelihoodRating = dr.GetDecimal(2);
+                        }
+                    }
+                    dr.Close();
+                    sqlcom.Dispose();
+
+                    if (previousControlExist)
+                    {
+
+                        //Get HOD name
+                        if (ddlEntity.SelectedValue.Trim() == "Centurion Corporation Limited")
+                        {
+                            sqlcom = new SqlCommand();
+                            sqlcom.CommandText = "select ViewOrHOD from dbo.Setup_Department where DepartmentName = '" + ddlDepartment.SelectedValue.Trim() + "' and STATUS = @Status;";
+                            sqlcom.Connection = conn.objConnection;
+                            sqlcom.Parameters.AddWithValue("@Status", "ACTIVE");
+                            dr = sqlcom.ExecuteReader();
+                            while (dr.Read())
+                            {
+                                HODname = dr.GetString(0);
+                            }
+                            dr.Close();
+                            sqlcom.Dispose();
+                        }
+                        else
+                        {
+                            sqlcom = new SqlCommand();
+                            sqlcom.CommandText = "select HOD from dbo.Setup_Entity where EntityName = '" + ddlEntity.SelectedValue.Trim() + "' and STATUS = @Status;";
+                            sqlcom.Connection = conn.objConnection;
+                            sqlcom.Parameters.AddWithValue("@Status", "ACTIVE");
+                            dr = sqlcom.ExecuteReader();
+                            while (dr.Read())
+                            {
+                                HODname = dr.GetString(0);
+                            }
+                            dr.Close();
+                            sqlcom.Dispose();
+                        }
+
+
+
+
+
+                        // Insert Record
+                        sqlcom.CommandText = "INSERT INTO dbo.Control_Data " +
+                            "(ControlReferenceCode, RiskReferenceCode, Year, Quarter, Entity, Department, HODEmail, BeforeControlActivities, AfterControlActivities, BeforeControlImpactRating, " +
+                            "AfterControlImpactRating, BeforeControlLikelihoodRating, AfterControlLikelihoodRating, BeforeControlEffectivenessRating, AfterControlEffectivenessRating, UpdateDate) VALUES " +
+                            "(@ControlReferenceCode, @RiskReferenceCode, @Year, @Quarter, @Entity, @Department, @HODEmail, @BeforeControlActivities, @AfterControlActivities, @BeforeControlImpactRating, " +
+                            "@AfterControlImpactRating, @BeforeControlLikelihoodRating, @AfterControlLikelihoodRating, @BeforeControlEffectivenessRating, @AfterControlEffectivenessRating, @UpdateDate ) ";
+
+                        sqlcom.Parameters.AddWithValue("@ControlReferenceCode", SqlDbType.VarChar).Value = controlNumber;
+                        sqlcom.Parameters.AddWithValue("@RiskReferenceCode", ddlRiskRef.SelectedValue.Trim());
+                        sqlcom.Parameters.AddWithValue("@Year", SqlDbType.VarChar).Value = txtYear.Text;
+                        sqlcom.Parameters.AddWithValue("@Quarter", SqlDbType.VarChar).Value = txtQuarter.Text;
+                        sqlcom.Parameters.AddWithValue("@Entity", ddlEntity.SelectedValue.Trim());
+                        sqlcom.Parameters.AddWithValue("@Department", ddlDepartment.SelectedValue.Trim());
+                        sqlcom.Parameters.AddWithValue("@HODEmail", SqlDbType.VarChar).Value = HODname;
+                        sqlcom.Parameters.AddWithValue("@BeforeControlActivities", SqlDbType.VarChar).Value = previousControlActivities;
+                        sqlcom.Parameters.AddWithValue("@AfterControlActivities", SqlDbType.VarChar).Value = previousControlActivities;
+                        sqlcom.Parameters.AddWithValue("@BeforeControlImpactRating", SqlDbType.Int).Value = previousControlImpactRating;
+                        sqlcom.Parameters.AddWithValue("@AfterControlImpactRating", SqlDbType.Int).Value = previousControlImpactRating;
+                        sqlcom.Parameters.AddWithValue("@BeforeControlLikelihoodRating", SqlDbType.Int).Value = previousControlLikelihoodRating;
+                        sqlcom.Parameters.AddWithValue("@AfterControlLikelihoodRating", SqlDbType.Int).Value = previousControlLikelihoodRating;
+                        sqlcom.Parameters.AddWithValue("@BeforeControlEffectivenessRating", SqlDbType.Int).Value = 0;
+                        sqlcom.Parameters.AddWithValue("@AfterControlEffectivenessRating", SqlDbType.Int).Value = 0;
+                        sqlcom.Parameters.AddWithValue("@UpdateDate", SqlDbType.VarChar).Value = currentDateTime;
+
+
+                        sqlcom.Connection = conn.objConnection;
+                        sqlcom.ExecuteNonQuery();
+                        sqlcom.Dispose();
+
+                    }
+
+                    
+                    else
+                    {
+
+                        //Get Control Activities/Description
+                        sqlcom = new SqlCommand();
+                        sqlcom.CommandText = "SELECT Description from dbo.Setup_Control where ReferenceCode = @ReferenceCode and STATUS = @Status;";
+                        sqlcom.Connection = conn.objConnection;
+                        sqlcom.Parameters.AddWithValue("@Status", "ACTIVE");
+                        sqlcom.Parameters.AddWithValue("@ReferenceCode", controlNumber);
+                        dr = sqlcom.ExecuteReader();
+                        while (dr.Read())
+                        {
+                            ControlActivities = dr.GetString(0);
+                        }
+                        dr.Close();
+                        sqlcom.Dispose();
+
+
+                        //Get HOD name
+                        if (ddlEntity.SelectedValue.Trim() == "Centurion Corporation Limited")
+                        {
+                            sqlcom = new SqlCommand();
+                            sqlcom.CommandText = "select ViewOrHOD from dbo.Setup_Department where DepartmentName = '" + ddlDepartment.SelectedValue.Trim() + "' and STATUS = @Status;";
+                            sqlcom.Connection = conn.objConnection;
+                            sqlcom.Parameters.AddWithValue("@Status", "ACTIVE");
+                            dr = sqlcom.ExecuteReader();
+                            while (dr.Read())
+                            {
+                                HODname = dr.GetString(0);
+                            }
+                            dr.Close();
+                            sqlcom.Dispose();
+                        }
+                        else
+                        {
+                            sqlcom = new SqlCommand();
+                            sqlcom.CommandText = "select HOD from dbo.Setup_Entity where EntityName = '" + ddlEntity.SelectedValue.Trim() + "' and STATUS = @Status;";
+                            sqlcom.Connection = conn.objConnection;
+                            sqlcom.Parameters.AddWithValue("@Status", "ACTIVE");
+                            dr = sqlcom.ExecuteReader();
+                            while (dr.Read())
+                            {
+                                HODname = dr.GetString(0);
+                            }
+                            dr.Close();
+                            sqlcom.Dispose();
+                        }
+
+
+
+
+
+                        // Insert Record
+                        sqlcom.CommandText = "INSERT INTO dbo.Control_Data " +
+                            "(ControlReferenceCode, RiskReferenceCode, Year, Quarter, Entity, Department, HODEmail, BeforeControlActivities, AfterControlActivities, BeforeControlImpactRating, " +
+                            "AfterControlImpactRating, BeforeControlLikelihoodRating, AfterControlLikelihoodRating, BeforeControlEffectivenessRating, AfterControlEffectivenessRating, UpdateDate) VALUES " +
+                            "(@ControlReferenceCode, @RiskReferenceCode, @Year, @Quarter, @Entity, @Department, @HODEmail, @BeforeControlActivities, @AfterControlActivities, @BeforeControlImpactRating, " +
+                            "@AfterControlImpactRating, @BeforeControlLikelihoodRating, @AfterControlLikelihoodRating, @BeforeControlEffectivenessRating, @AfterControlEffectivenessRating, @UpdateDate ) ";
+
+                        sqlcom.Parameters.AddWithValue("@ControlReferenceCode", SqlDbType.VarChar).Value = controlNumber;
+                        sqlcom.Parameters.AddWithValue("@RiskReferenceCode", ddlRiskRef.SelectedValue.Trim());
+                        sqlcom.Parameters.AddWithValue("@Year", SqlDbType.VarChar).Value = txtYear.Text;
+                        sqlcom.Parameters.AddWithValue("@Quarter", SqlDbType.VarChar).Value = txtQuarter.Text;
+                        sqlcom.Parameters.AddWithValue("@Entity", ddlEntity.SelectedValue.Trim());
+                        sqlcom.Parameters.AddWithValue("@Department", ddlDepartment.SelectedValue.Trim());
+                        sqlcom.Parameters.AddWithValue("@HODEmail", SqlDbType.VarChar).Value = HODname;
+                        sqlcom.Parameters.AddWithValue("@BeforeControlActivities", SqlDbType.VarChar).Value = ControlActivities;
+                        sqlcom.Parameters.AddWithValue("@AfterControlActivities", SqlDbType.VarChar).Value = ControlActivities;
+                        sqlcom.Parameters.AddWithValue("@BeforeControlImpactRating", SqlDbType.Int).Value = 0;
+                        sqlcom.Parameters.AddWithValue("@AfterControlImpactRating", SqlDbType.Int).Value = 0;
+                        sqlcom.Parameters.AddWithValue("@BeforeControlLikelihoodRating", SqlDbType.Int).Value = 0;
+                        sqlcom.Parameters.AddWithValue("@AfterControlLikelihoodRating", SqlDbType.Int).Value = 0;
+                        sqlcom.Parameters.AddWithValue("@BeforeControlEffectivenessRating", SqlDbType.Int).Value = 0;
+                        sqlcom.Parameters.AddWithValue("@AfterControlEffectivenessRating", SqlDbType.Int).Value = 0;
+                        sqlcom.Parameters.AddWithValue("@UpdateDate", SqlDbType.VarChar).Value = currentDateTime;
+
+
+                        sqlcom.Connection = conn.objConnection;
+                        sqlcom.ExecuteNonQuery();
+                        sqlcom.Dispose();
+
+                    }
+
+
+
+
+
+                }
+
+                conn.Close();
+
+                this.reload2();
+
+            }
